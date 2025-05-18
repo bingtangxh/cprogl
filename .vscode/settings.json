@@ -9,6 +9,7 @@
         "tuple": "c",
         "compare": "c",
         "bit": "c",
-        "random": "c"
+        "random": "c",
+        "iostream": "cpp"
     }
 }

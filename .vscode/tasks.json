@@ -265,7 +265,8 @@
                 "${file}",
                 "-o",
                 "C:\\cproglExefile\\${fileBasenameNoExtension}.exe",
-                "-lole32"
+                "-lole32",
+                "-lstdc++"
             ],
             "options": {
                 "cwd": "${fileDirname}"
@@ -290,7 +291,8 @@
                 "-o",
                 "C:\\cproglExefile\\${fileBasenameNoExtension}.exe",
                 "-fexec-charset=UTF-8",
-                "-lole32"
+                "-lole32",
+                "-lstdc++"
             ],
             "options": {
                 "cwd": "${fileDirname}"

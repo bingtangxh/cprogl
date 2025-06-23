@@ -1,0 +1,26 @@
+#include <string.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+
+#define gettid() syscall(__NR_gettid)
+
+pthread_t ntid;
+
+void *printids(void *s)
+{
+    pid_t pid=getpid(),ktid=gettid(),utid=pthread_self();
+    printf("%s pid %u ktid %u utid %u (0x%x)\n",
+s,(unsigned int)pid,(unsigned int)ktid,(unsigned int)utid,(unsigned int)utid
+    );
+    pause();
+}
+
+int main(void)
+{
+    pthread_create(&ntid,NULL,printids," new thread MIAO:");
+    printids("main thread MIE:");
+    sleep(1);
+    return 0;
+}

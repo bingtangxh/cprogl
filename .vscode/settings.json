@@ -10,6 +10,8 @@
         "compare": "c",
         "bit": "c",
         "random": "c",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "winternl.h": "c",
+        "windef.h": "c"
     }
 }

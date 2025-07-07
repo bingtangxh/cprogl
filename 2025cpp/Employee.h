@@ -11,14 +11,15 @@ class Employee {
 private:
     static string companyName;
     // 上面这个是静态成员，到哪都一样
+protected:
+    double money;
+
     int id;
     string name;
     Information info;
 
-protected:
-    double money;
-
 public:
+
     // 这是无参构造函数
     Employee() : id(0), name(""), info(), money(0.0) {}
 
@@ -30,6 +31,8 @@ public:
     static void setCompanyName(const string& cname) {
         companyName = cname;
     }
+
+    virtual string getTypeName() const = 0;
 
     // 设置所有私有成员变量（除了公司名）
     void setAll(int _id, const string& _name, int age, double weight) {
@@ -47,7 +50,7 @@ public:
         cout << endl;
     }
 
-    // 写进文件
+    // 这个函数虽然用来写进文件，但是应该用不到，因为每个派生类都写了 override 的 writeFile 函数
     virtual void writeFile() const {
         ofstream fout("employee.txt", ios::app);
         if (fout.is_open()) {
@@ -72,6 +75,6 @@ public:
 };
 
 // 静态成员初始化
-string Employee::companyName = "未命名公司";
+string Employee::companyName = "下北泽轨道交通集团有限公司（误）";
 
 #endif

@@ -4,6 +4,7 @@
 #include "Info.h"
 #include <cstdlib>
 #include <conio.h>
+#include <limits>
 class Menu {
 private:
     Info info;

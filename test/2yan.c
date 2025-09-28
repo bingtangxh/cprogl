@@ -13,5 +13,5 @@ int main(void){
         printf("%d",(short) a[i]+2);
         putchar(' ');
     }
-    getch();
+    _getch();
 }

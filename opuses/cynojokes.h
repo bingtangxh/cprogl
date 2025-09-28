@@ -1,4 +1,4 @@
-char *questions[][7] =
+char *questions[7][6] =
     {
         // 1 ↓
         {"提瓦特哪个国家的建筑最不牢固？",

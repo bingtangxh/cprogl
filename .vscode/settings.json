@@ -12,6 +12,9 @@
         "random": "c",
         "iostream": "cpp",
         "winternl.h": "c",
-        "windef.h": "c"
+        "windef.h": "c",
+        "winuser.h": "c",
+        "synchapi.h": "c",
+        "cstdint": "cpp"
     }
 }

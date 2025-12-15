@@ -409,7 +409,7 @@
         {
             "type": "shell",
             "label": "C/C++: cl.exe 生成活动文件喵  ARM64",
-            "command": "C:\\\"Program Files (x86)\"\\\"Microsoft Visual Studio\"\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\arm64\\cl.exe",
+            "command": "cl.exe",
             "args": [
                 "/nologo",
                 "/Z7",
@@ -445,7 +445,7 @@
                     "args":[
                         "/v:on",
                         "/c",
-                        "C:\\\"Program Files (x86)\"\\\"Microsoft Visual Studio\"\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat",
+                        "vcvarsall.bat",
                         "x64_ARM64",
                         "10.0.22621.0",
                         "&&",
@@ -466,7 +466,7 @@
         {
             "type": "shell",
             "label": "C/C++: cl.exe 生成活动文件喵  ARM64 UTF-8",
-            "command": "C:\\\"Program Files (x86)\"\\\"Microsoft Visual Studio\"\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\arm64\\cl.exe",
+            "command": "cl.exe",
             "args": [
                 "/nologo",
                 "/Z7",
@@ -503,7 +503,7 @@
                     "args":[
                         "/v:on",
                         "/c",
-                        "C:\\\"Program Files (x86)\"\\\"Microsoft Visual Studio\"\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat",
+                        "vcvarsall.bat",
                         "x64_ARM64",
                         "10.0.22621.0",
                         "&&",

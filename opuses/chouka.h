@@ -3,38 +3,42 @@
 
 typedef uint32_t RoleMeta;
 
+#define VISION_OTHER   0
+#define PYRO           1
+#define HYDRO          2
+#define ANEMO          3
+#define ELECTRO        4
+#define DENDRO         5
+#define CRYO           6
+#define GEO            7
+#define VISION_UNKNOWN 8
+
 #define ROLE_TYPE_TRAVELER_AETHER   0
 #define ROLE_TYPE_TRAVELER_LUMINE   1
 #define ROLE_TYPE_COLLAB            2
 #define ROLE_TYPE_FOUR_STAR         4
 #define ROLE_TYPE_LIMITED_FIVE_STAR 5
+#define ROLE_TYPE_UNKNOWN           6
+#define ROLE_TYPE_EXCLUDED          256
+// 末两位均为 1 时，即模 4 余 3 时一律算作常驻五星
 
 // 编码池信息（常驻五星时才有意义）
-#define ENCODE_POOL_VERSION(major, minor, half) \
-    (((major) << 6) | ((minor) << 2) | ((half) & 0x3))
+#define ENCODE_POOL_VERSION(major,minor,half) \
+    (((major)<<6)|((minor)<<2)|((half)&0x3))
 
 // 构造 RoleMeta：常驻五星 = (encoded << 3) | 3（3表示常驻五星）
 // 只看最后两位，如果是 3 ，表示是常驻五星，再去解码
 // 如果往前全是 0 ，说明是开服常驻，从未 UP （刻晴是特殊情况）
-#define MAKE_ROLE_META(major, minor, half) \
-    ((ENCODE_POOL_VERSION((major), (minor), (half)) << 3) | 3)
+#define MAKE_ROLE_META(major,minor,half) \
+    ((ENCODE_POOL_VERSION((major),(minor),(half))<<3)|3)
 
 // 提取 roleType
-#define GET_ROLE_TYPE(meta) ((meta) & 0x7)
+#define GET_ROLE_TYPE(meta) ((meta)&0x7)
 
-// 提取常驻五星的首次UP信息（前提是 GET_ROLE_TYPE(meta) == 3）
-#define GET_MAJOR(meta) (((meta) >> 9) & 0xFF)
-#define GET_MINOR(meta) (((meta) >> 5) & 0x0F)
-#define GET_HALF(meta)  (((meta) >> 3) & 0x03)
-
-#define OTHER_VISION 0
-#define PYRO         1
-#define HYDRO        2
-#define ANEMO        3
-#define ELECTRO      4
-#define DENDRO       5
-#define CRYO         6
-#define GEO          7
+// 提取常驻五星的首次UP信息（前提是 GET_ROLE_TYPE(meta)==3）
+#define GET_MAJOR(meta) (((meta)>>9)&0xFF)
+#define GET_MINOR(meta) (((meta)>>5)&0x0F)
+#define GET_HALF(meta)  (((meta)>>3)&0x03)
 
 typedef struct characterMap {
     const unsigned int id;
@@ -49,6 +53,8 @@ typedef struct characterMap {
     3: permanent 5 star
     4: 4 star
     5: limited 5 star
+    6: Unknown
+    if mod 4 equals to 3 then it is permanent 5 star
     */
 }Char_Map;
 
@@ -57,6 +63,7 @@ typedef struct weaponMap {
     const wchar_t name_cn[20];
     const char name[40];
     const unsigned int stars;
+    const uint8_t type;
 } WeaponMap;
 
 typedef struct wishPool {
@@ -75,8 +82,8 @@ typedef struct wishPool {
 } Wish_Pool;
 
 Char_Map CharMap[]={
-    {0,L"空","Aether",OTHER_VISION,0},
-    {1,L"荧","Lumine",OTHER_VISION,1},
+    {0,L"空","Aether",VISION_OTHER,0},
+    {1,L"荧","Lumine",VISION_OTHER,1},
     {2,L"安柏","Amber",PYRO,4},
     {3,L"凯亚","Kaeya",CRYO,4},
     {4,L"丽莎","Lisa",ELECTRO,4},
@@ -140,7 +147,7 @@ Char_Map CharMap[]={
     {59,L"莱依拉","Layla",CRYO,4},
     {60,L"珐露珊","Faruzan",ANEMO,4},
     {61,L"流浪者","Wanderer",ANEMO,5},
-    {62,L"瑶瑶","Yaoyao",DENDRO,4},
+    {62,L"瑶瑶","Yao Yao",DENDRO,4},
     {63,L"艾尔海森","Alhaitham",DENDRO,5},
     {64,L"迪希雅","Dehya",PYRO,MAKE_ROLE_META(3,5,1)},
     {65,L"米卡","Mika",CRYO,4},
@@ -187,6 +194,10 @@ Char_Map CharMap[]={
     {106,L"奈芙尔","Nefer",DENDRO,5},
     {107,L"雅柯达","Jahoda",ANEMO,4},
     {108,L"杜林","Durin",PYRO,5},
+    {109,L"叶洛亚","Illgua",GEO,ROLE_TYPE_UNKNOWN},
+    {110,L"兹白","Zibai",GEO,ROLE_TYPE_UNKNOWN},
+    {111,L"哥伦比娅·希珀塞莱尼娅","Columbina Hyposelenia",HYDRO,ROLE_TYPE_UNKNOWN},
+    
 };
 
 Wish_Pool WishPool[]={
@@ -275,7 +286,7 @@ Wish_Pool WishPool[]={
     {{89,21},{60,32,8},{},5,5,2,2025,4,15,2025,5,6},
     {{99,76},{98,90,59},{},5,6,1,2025,5,7,2025,5,27},
     {{88,40},{42,39,69},{},5,6,2,2025,5,27,2025,6,17},
-    {{35,48,37,80,47,44},{},{},5,6,12,2025,5,27,2025,6,17},
+    {{35,48,37,80,47,44,41,34},{},{},5,6,12,2025,5,27,2025,6,17},
     {{101,46},{100,55,23},{},5,7,1,2025,6,18,2025,7,8},
     {{93,85},{62,7,96},{},5,7,2,2025,7,8,2025,7,29},
     {{102,92},{82,11,9},{},5,8,1,2025,7,30,2025,8,19},

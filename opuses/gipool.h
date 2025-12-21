@@ -2,18 +2,65 @@
 #include <stdio.h>
 #include <time.h>
 #include <windows.h>
+
+#define ARRAY_SIZE(arr)                 \
+    (                                   \
+        sizeof(arr)==0?0:               \
+        sizeof(arr)/sizeof((arr)[0])    \
+    )
+
 char** localizedNames;
 int charCount,poolCount,longestIndex;
-int* daysPassedSinceLastUP,arrangedInOrderOfDays;
+int* daysPassedSinceLastUP;
+int* arrangedInOrderOfDays;
+int checkIntegrity(void);
+void initDynamicThings(void);
 void printW(const wchar_t* wstr);
 void putPool(Wish_Pool WishPool1);
 int findLongest(Char_Map CharMap1[]);
 int localizeNames(Char_Map CharMap1[],char* localizedNames[]);
-void getDaysPassedSinceLastUp();
-void arrangeByDaysPassedSinceLastUp();
-int daysSincePoolEnds(const Wish_Pool* pool);
-static time_t make_time_from_ymd(uint16_t y, uint8_t m, uint8_t d);
+void getDaysPassedSinceLastUp(void);
+time_t makeTimeFromYMD(uint16_t y,uint8_t m,uint8_t d);
+int daysSinceSinglePoolEnds(const Wish_Pool pool);
+void swap(int* a,int* b);
+int partition(int days[],int indices[],int low,int high);
+void quickSort(int days[],int indices[],int low,int high);
+void arrangeByDaysPassedSinceLastUp(void);
+void freeDynamicThings(void);
 
+int checkIntegrity(void){
+    int errorlevel=0;
+    for(int i=0;i<(int)ARRAY_SIZE(CharMap);i++) {
+        if(
+            CharMap[i].id!=i
+        ) errorlevel++;
+    }
+    for(int i=0;i+1<(int)ARRAY_SIZE(WishPool);i++) {
+        if(
+              (WishPool[i].major>WishPool[i+1].major)                                                                                              ||
+            (!(WishPool[i].major>WishPool[i+1].major)&& (WishPool[i].minor>WishPool[i+1].minor))                                                   ||
+            (!(WishPool[i].major>WishPool[i+1].major)&&!(WishPool[i].minor>WishPool[i+1].minor)&&((WishPool[i].half%10)>(WishPool[i+1].minor%10))) ||
+            (makeTimeFromYMD(WishPool[i].startY,WishPool[i].startM,WishPool[i].startD)>=makeTimeFromYMD(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD)) ||
+            (makeTimeFromYMD(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD)>makeTimeFromYMD(WishPool[i+1].startY,WishPool[i+1].startM,WishPool[i+1].startD)) ||
+            0         
+        ) errorlevel++;
+    }
+    return errorlevel;
+}
+
+void initDynamicThings(void){
+    charCount=(int)ARRAY_SIZE(CharMap);
+    poolCount=(int)ARRAY_SIZE(WishPool);
+    longestIndex=findLongest(CharMap);
+    localizedNames=(char**)malloc(charCount*sizeof(char*));
+    localizeNames(CharMap,localizedNames);
+    getDaysPassedSinceLastUp();
+    arrangedInOrderOfDays=(int*)malloc(charCount*sizeof(int));
+    for(int i=0;i<charCount;i++){
+        arrangedInOrderOfDays[i]=i;
+    }
+    arrangeByDaysPassedSinceLastUp();
+}
 
 void printW(const wchar_t* wstr) {
     HANDLE hConsole=GetStdHandle(STD_OUTPUT_HANDLE);
@@ -62,9 +109,14 @@ int localizeNames(Char_Map CharMap1[],char* localizedNames[]){
         if(conved==0) result=1;
     }
     return result;
+    // result 返回 1 为未完成，返回 0 为成功完成。
 }
 
-void getDaysPassedSinceLastUp(){
+void getDaysPassedSinceLastUp(void){
+    // 这个函数在程序最开始初始化时调用，计算每一个角色的最后一个卡池的已结束天数
+    // 因为函数最开始会将 daysPassedSinceLastUP 全局指针变量进行分配
+    // 而这个全局变量的释放是由 freeDynamicThings() 进行
+    // 所以请勿反复调用此函数
     daysPassedSinceLastUP=(int*)malloc(sizeof(int)*charCount);
     for (int c=0;c<charCount;c++)
     {
@@ -82,7 +134,7 @@ void getDaysPassedSinceLastUp(){
             }
         }
     FOUND:
-        if (lastPoolIndex>=0)daysPassedSinceLastUP[c]=daysSincePoolEnds(&WishPool[lastPoolIndex]);
+        if (lastPoolIndex>=0)daysPassedSinceLastUP[c]=daysSinceSinglePoolEnds(WishPool[lastPoolIndex]);
         // 从未 UP 过（常驻 / 联动 / 特殊）
         else daysPassedSinceLastUP[c]=-1;
     }
@@ -101,14 +153,64 @@ time_t makeTimeFromYMD(uint16_t y,uint8_t m,uint8_t d){
     return mktime(&t);
 }
 
-int daysSincePoolEnds(const Wish_Pool* pool)
+int daysSinceSinglePoolEnds(const Wish_Pool pool)
 {
+    // 这个函数仅计算单个卡池的已结束天数
     time_t now=time(NULL);
-    time_t end=makeTimeFromYMD(pool->endY,pool->endM,pool->endD);
+    time_t end=makeTimeFromYMD(pool.endY,pool.endM,pool.endD);
     double diff=difftime(now,end);
     return (int)(diff/86400);
 }
 
-void arrangeByDaysPassedSinceLastUp(){
+void swap(int* a,int* b) {
+    if(a==b) return;
+    else {
+        *a+=*b;
+        *b=*a-*b;
+        *a-=*b;
+    }
+}
 
+int partition(int days[],int indices[],int low,int high) {
+    // 快速排序分区函数
+    int pivot=days[indices[high]];  // 选择最后一个元素作为枢轴
+    int i=low-1;                    // 较小元素的索引
+    for(int j=low;j<=high-1;j++) {
+        // 如果当前元素大于枢轴值（降序排序）
+        if(days[indices[j]]>pivot) {
+            i++;                    // 增加较小元素的索引
+            // 交换 indices[i] 和 indices[j]
+            swap(&indices[i],&indices[j]);
+        }
+    }
+    // 将枢轴放到正确位置
+            swap(&indices[i+1],&indices[high]);
+    return i+1;
+}
+
+void quickSort(int days[],int indices[],int low,int high) {
+    // 快速排序主函数
+    if(low<high) {
+        // 获取分区点
+        int pi=partition(days,indices,low ,high);
+        // 递归排序左右两部分
+               quickSort(days,indices,low ,pi-1);
+               quickSort(days,indices,pi+1,high);
+    }
+}
+
+void arrangeByDaysPassedSinceLastUp() {
+    // 包装函数，在 initDynamicThings() 中调用  
+    // 对 arrangedInOrderOfDays 进行快速排序
+    // 排序依据是 daysPassedSinceLastUP[arrangedInOrderOfDays[i]] 降序
+    if(charCount>0) quickSort(daysPassedSinceLastUP,arrangedInOrderOfDays,0,charCount-1);
+}
+
+void freeDynamicThings(void){
+    for(int i=0;i<charCount;i++){
+        free(localizedNames[i]);
+    }
+    free(localizedNames);
+    free(daysPassedSinceLastUP);
+    free(arrangedInOrderOfDays);
 }

@@ -18,6 +18,19 @@
         "cstdint": "cpp",
         "clocale": "c",
         "stdio.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "charconv": "c",
+        "chrono": "c",
+        "ctime": "c",
+        "format": "c",
+        "future": "c",
+        "iomanip": "c",
+        "limits": "c",
+        "numeric": "c",
+        "ranges": "c",
+        "ratio": "c",
+        "shared_mutex": "c",
+        "streambuf": "c",
+        "type_traits": "c"
     }
 }

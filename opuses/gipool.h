@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <windows.h>
+#include <limits.h>
 
 #define ARRAY_SIZE(arr)                 \
     (                                   \
@@ -20,13 +21,15 @@ void putPool(Wish_Pool WishPool1);
 int findLongest(Char_Map CharMap1[]);
 int localizeNames(Char_Map CharMap1[],char* localizedNames[]);
 void getDaysPassedSinceLastUp(void);
-time_t makeTimeFromYMD(uint16_t y,uint8_t m,uint8_t d);
+time_t makeTimeFromYMDHMS(uint16_t y,uint8_t m,uint8_t d,int hour,int min,int sec);
 int daysSinceSinglePoolEnds(const Wish_Pool pool);
 void swap(int* a,int* b);
 int partition(int days[],int indices[],int low,int high);
 void quickSort(int days[],int indices[],int low,int high);
 void arrangeByDaysPassedSinceLastUp(void);
 void freeDynamicThings(void);
+int poolEndHour(uint8_t half);
+_Bool isPoolInOrder(int i);
 
 int checkIntegrity(void){
     int errorlevel=0;
@@ -37,12 +40,7 @@ int checkIntegrity(void){
     }
     for(int i=0;i+1<(int)ARRAY_SIZE(WishPool);i++) {
         if(
-              (WishPool[i].major>WishPool[i+1].major)                                                                                              ||
-            (!(WishPool[i].major>WishPool[i+1].major)&& (WishPool[i].minor>WishPool[i+1].minor))                                                   ||
-            (!(WishPool[i].major>WishPool[i+1].major)&&!(WishPool[i].minor>WishPool[i+1].minor)&&((WishPool[i].half%10)>(WishPool[i+1].minor%10))) ||
-            (makeTimeFromYMD(WishPool[i].startY,WishPool[i].startM,WishPool[i].startD)>=makeTimeFromYMD(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD)) ||
-            (makeTimeFromYMD(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD)>makeTimeFromYMD(WishPool[i+1].startY,WishPool[i+1].startM,WishPool[i+1].startD)) ||
-            0         
+            isPoolInOrder(i)         
         ) errorlevel++;
     }
     return errorlevel;
@@ -140,7 +138,7 @@ void getDaysPassedSinceLastUp(void){
     }
 }
 
-time_t makeTimeFromYMD(uint16_t y,uint8_t m,uint8_t d){
+time_t makeTimeFromYMDHMS(uint16_t y,uint8_t m,uint8_t d,int hour,int min,int sec){
     struct tm t={0};
     t.tm_year = y-1900;
     t.tm_mon  = m-1;
@@ -157,7 +155,10 @@ int daysSinceSinglePoolEnds(const Wish_Pool pool)
 {
     // 这个函数仅计算单个卡池的已结束天数
     time_t now=time(NULL);
-    time_t end=makeTimeFromYMD(pool.endY,pool.endM,pool.endD);
+    int hour=0,min=0,sec=0;
+    hour=poolEndHour(pool.half);
+    if(hour==INT_MIN) return INT_MIN;
+    time_t end=makeTimeFromYMDHMS(pool.endY,pool.endM,pool.endD,hour,min,sec);
     double diff=difftime(now,end);
     return (int)(diff/86400);
 }
@@ -213,4 +214,32 @@ void freeDynamicThings(void){
     free(localizedNames);
     free(daysPassedSinceLastUP);
     free(arrangedInOrderOfDays);
+}
+
+int poolEndHour(uint8_t half){
+    switch(half%10) {
+        case 1:{
+            return 18;
+        }
+        case 2:{
+            return 15;
+        }
+        case 3:{
+            return 0; // 资料暂缺
+        }
+        default:{
+            return INT_MIN;
+        }
+    }
+}
+
+_Bool isPoolInOrder(int i){
+    if((WishPool[i].major>WishPool[i+1].major)                                                                                                ||
+            ((WishPool[i].major==WishPool[i+1].major)&& (WishPool[i].minor>WishPool[i+1].minor))                                                   ||
+            ((WishPool[i].major<WishPool[i+1].major)&& (WishPool[i+1].minor>0))                                                                    ||
+            (!((WishPool[i].major<WishPool[i+1].major)||((WishPool[i].major==WishPool[i+1].major)&&(WishPool[i].minor<WishPool[i+1].minor)))&&((WishPool[i].half%10)>(WishPool[i+1].half%10)))  ||
+            (makeTimeFromYMDHMS(WishPool[i].startY,WishPool[i].startM,WishPool[i].startD,poolEndHour(WishPool[i].half),0,0)>=makeTimeFromYMDHMS(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD,poolEndHour(WishPool[i].half),0,0)) ||
+            ((makeTimeFromYMDHMS(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD,poolEndHour(WishPool[i].half),0,0)>makeTimeFromYMDHMS(WishPool[i+1].startY,WishPool[i+1].startM,WishPool[i+1].startD,poolEndHour(WishPool[i].half),0,0))&&((WishPool[i].half%10)<(WishPool[i+1].half%10))) ||
+            0  
+    ) return 1; else return 0;
 }

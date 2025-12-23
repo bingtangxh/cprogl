@@ -15,11 +15,12 @@ int charCount,poolCount,longestIndex;
 int* daysPassedSinceLastUP;
 int* arrangedInOrderOfDays;
 int checkIntegrity(void);
+_Bool isPoolInOrder(int i);
 void initDynamicThings(void);
 void printW(const wchar_t* wstr);
 void putPool(Wish_Pool WishPool1);
 int findLongest(Char_Map CharMap1[]);
-int localizeNames(Char_Map CharMap1[],char* localizedNames[]);
+_Bool localizeNames(Char_Map CharMap1[],char* localizedNames[]);
 void getDaysPassedSinceLastUp(void);
 time_t makeTimeFromYMDHMS(uint16_t y,uint8_t m,uint8_t d,int hour,int min,int sec);
 int daysSinceSinglePoolEnds(const Wish_Pool pool);
@@ -29,7 +30,6 @@ void quickSort(int days[],int indices[],int low,int high);
 void arrangeByDaysPassedSinceLastUp(void);
 void freeDynamicThings(void);
 int poolEndHour(uint8_t half);
-_Bool isPoolInOrder(int i);
 
 int checkIntegrity(void){
     int errorlevel=0;
@@ -44,6 +44,17 @@ int checkIntegrity(void){
         ) errorlevel++;
     }
     return errorlevel;
+}
+
+_Bool isPoolInOrder(int i){
+    if((WishPool[i].major>WishPool[i+1].major)                                                                                                ||
+            ((WishPool[i].major==WishPool[i+1].major)&& (WishPool[i].minor>WishPool[i+1].minor))                                                   ||
+            ((WishPool[i].major<WishPool[i+1].major)&& (WishPool[i+1].minor>0))                                                                    ||
+            (!((WishPool[i].major<WishPool[i+1].major)||((WishPool[i].major==WishPool[i+1].major)&&(WishPool[i].minor<WishPool[i+1].minor)))&&((WishPool[i].half%10)>(WishPool[i+1].half%10)))  ||
+            (makeTimeFromYMDHMS(WishPool[i].startY,WishPool[i].startM,WishPool[i].startD,poolEndHour(WishPool[i].half),0,0)>=makeTimeFromYMDHMS(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD,poolEndHour(WishPool[i].half),0,0)) ||
+            ((makeTimeFromYMDHMS(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD,poolEndHour(WishPool[i].half),0,0)>makeTimeFromYMDHMS(WishPool[i+1].startY,WishPool[i+1].startM,WishPool[i+1].startD,poolEndHour(WishPool[i].half),0,0))&&((WishPool[i].half%10)<(WishPool[i+1].half%10))) ||
+            0  
+    ) return 1; else return 0;
 }
 
 void initDynamicThings(void){
@@ -98,8 +109,8 @@ int findLongest(Char_Map CharMap1[]){
     return maxIndex;
 }
 
-int localizeNames(Char_Map CharMap1[],char* localizedNames[]){
-    int result=0;
+_Bool localizeNames(Char_Map CharMap1[],char* localizedNames[]){
+    _Bool result=0;
     for(int i=0,conved=0;i<charCount;i++){
         int destSize=WideCharToMultiByte(CP_ACP,0,CharMap1[i].name_cn,-1,NULL,0,NULL,NULL);
         localizedNames[i]=(char*)malloc(sizeof(char)*(destSize+0));
@@ -143,9 +154,9 @@ time_t makeTimeFromYMDHMS(uint16_t y,uint8_t m,uint8_t d,int hour,int min,int se
     t.tm_year = y-1900;
     t.tm_mon  = m-1;
     t.tm_mday = d;
-    t.tm_hour = 0;
-    t.tm_min  = 0;
-    t.tm_sec  = 0;
+    t.tm_hour = hour;
+    t.tm_min  = min;
+    t.tm_sec  = sec;
     // 此处暂时硬编码一个 00:00:00 ，以后再看要不要细化到时间
     t.tm_isdst=-1;
     return mktime(&t);
@@ -160,11 +171,14 @@ int daysSinceSinglePoolEnds(const Wish_Pool pool)
     if(hour==INT_MIN) return INT_MIN;
     time_t end=makeTimeFromYMDHMS(pool.endY,pool.endM,pool.endD,hour,min,sec);
     double diff=difftime(now,end);
-    return (int)(diff/86400);
+    diff/=24*60*60;
+    if(diff<0) return ((int)diff)-1;
+    else if(diff>0) return ((int)diff)+1;
+    else return 0;
 }
 
 void swap(int* a,int* b) {
-    if(a==b) return;
+    if(a==b||*a==*b) return;
     else {
         *a+=*b;
         *b=*a-*b;
@@ -231,15 +245,4 @@ int poolEndHour(uint8_t half){
             return INT_MIN;
         }
     }
-}
-
-_Bool isPoolInOrder(int i){
-    if((WishPool[i].major>WishPool[i+1].major)                                                                                                ||
-            ((WishPool[i].major==WishPool[i+1].major)&& (WishPool[i].minor>WishPool[i+1].minor))                                                   ||
-            ((WishPool[i].major<WishPool[i+1].major)&& (WishPool[i+1].minor>0))                                                                    ||
-            (!((WishPool[i].major<WishPool[i+1].major)||((WishPool[i].major==WishPool[i+1].major)&&(WishPool[i].minor<WishPool[i+1].minor)))&&((WishPool[i].half%10)>(WishPool[i+1].half%10)))  ||
-            (makeTimeFromYMDHMS(WishPool[i].startY,WishPool[i].startM,WishPool[i].startD,poolEndHour(WishPool[i].half),0,0)>=makeTimeFromYMDHMS(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD,poolEndHour(WishPool[i].half),0,0)) ||
-            ((makeTimeFromYMDHMS(WishPool[i].endY,WishPool[i].endM,WishPool[i].endD,poolEndHour(WishPool[i].half),0,0)>makeTimeFromYMDHMS(WishPool[i+1].startY,WishPool[i+1].startM,WishPool[i+1].startD,poolEndHour(WishPool[i].half),0,0))&&((WishPool[i].half%10)<(WishPool[i+1].half%10))) ||
-            0  
-    ) return 1; else return 0;
 }

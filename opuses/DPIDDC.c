@@ -1,18 +1,118 @@
-#include <stdio.h>
+ï»¿#include <stdio.h>
 #include <string.h>
-#include <windows.h>
-#include <winreg.h>
+#include <Windows.h>
 #pragma comment(lib,"User32.lib")
 #pragma comment(lib,"Advapi32.lib")
+#pragma comment(lib,"Kernel32.lib")
+#ifdef _ARM
+#pragma comment(linker,"\"/manifestdependency:type='win32' \
+name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
+processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#endif
+#ifndef _UNICODE
+#define _UNICODE
+#endif
+#ifndef UNICODE
+#define UNICODE
+#endif
 
-const signed char KEY_CHARSET[] = "BCDFGHJKMPQRTVWXY2346789";
+const signed char KEY_CHARSET[]="BCDFGHJKMPQRTVWXY2346789";
+
+#define HEXVAL(hex) (hex-((hex>'9') ? ((hex<'a') ? 55 : 87) : 48))
+
+// int getHexVal(const char hex) { return hex-((hex>'9') ? ((hex<'a') ? 55 : 87) : 48); }
+void removeFrom(char *str,char remv);
+int string2ByteArrayFastest(const char * hex,char * result);
+void decodePID(const unsigned char *digitalProductId,char *productKey);
+void about(void);
+void help(void);
+void printW(const wchar_t* wstr);
+
+int main(int argc,char **argv)
+{
+    HKEY hKey;
+    DWORD size=UCHAR_MAX;
+    char buf[UCHAR_MAX]="";
+    char rawInput[329];
+    char productKey[30];
+    wchar_t wProductKey[30];
+    wchar_t result[154]=L"æœ¬ç¨‹åºä¹Ÿå¯ä»¥ä»å‘½ä»¤è¡Œè¿è¡Œï¼Œä½¿ç”¨ /? æŸ¥çœ‹ç”¨æ³•ã€‚\nä½ çš„äº§å“å¯†é’¥ä¸ºï¼š ";
+    char command[41];
+    unsigned char digitalProductId[164]="";
+    long unsigned int lpType=REG_BINARY;
+    switch (argc)
+    {
+        case 1:
+        {
+            about();
+            long ORet=RegOpenKeyExA(HKEY_LOCAL_MACHINE,"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",0,KEY_READ,&hKey);
+            if (ORet!=ERROR_SUCCESS)
+            {
+                printf("Failed to open the registry: \n%s\n%s\n","SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion","DigitalProductId");
+                return 3;
+            } else
+            {
+                long QRet=RegQueryValueExA(hKey,"DigitalProductId",NULL,&lpType,(BYTE*) buf,&size);
+                decodePID(buf,productKey);
+                MultiByteToWideChar(CP_ACP,0,productKey,-1,wProductKey,30);
+                wcsncat_s(result,154,wProductKey,29);
+                wcsncat_s(result,154,L"\nè¦å°†å®ƒå¤åˆ¶åˆ°å‰ªè´´æ¿å—ï¼Ÿ",35);
+                RegCloseKey(hKey);
+                if (MessageBoxW(NULL,(LPCWSTR) result,L"DPIDDC",MB_ICONINFORMATION+MB_YESNO)==IDYES)
+                {
+                    snprintf(command,41,"echo %s| clip",productKey);
+                    system(command);
+                }
+                return 0;
+            }
+            break;
+        }
+        case 2:
+            if (!strncmp(argv[1],"/?",3))
+            {
+                help();
+                return 0;
+            } else {
+                printW(L"å‚æ•°é”™è¯¯ï¼Œä½¿ç”¨ /? æŸ¥çœ‹ç”¨æ³•ã€‚\n");
+                return 1;
+            }
+            break;
+        case 3:
+            if (!_stricmp(argv[1],"/F"))
+            {
+                if (strlen(argv[2])==328)
+                {
+                    strncpy_s(rawInput,329,argv[2],328);
+                    // æœ¬æ¥è¿™é‡Œè®¾ç½®çš„ _DstSizeInChars å’Œ rawInput çš„é•¿åº¦éƒ½æ˜¯ 328 
+                    // ä½†æ˜¯è¿™æ ·çš„è¯ï¼Œ strncpy_s ä¼šå°† rawInput å¼„æˆç©ºå­—ç¬¦ä¸²ï¼Œæ‰€ä»¥åªå¥½ 329 äº†
+                    // printf("%s\n%d\n",rawInput,strcmp(rawInput,argv[2]));
+                    string2ByteArrayFastest(rawInput,digitalProductId);
+                    decodePID(digitalProductId,productKey);
+                    puts(productKey);
+                    return 0;
+                } else
+                {
+                    printW(L"è¾“å…¥çš„ DigitalProductId é•¿åº¦é”™è¯¯ï¼Œåº”å½“æ˜¯ 328 ã€‚\n");
+                    return 2;
+                }
+            } else {
+                printW(L"å‚æ•°é”™è¯¯ï¼Œä½¿ç”¨ /? æŸ¥çœ‹ç”¨æ³•ã€‚\n");
+                return 1;
+            }
+            break;
+        default:
+            printW(L"å‚æ•°æ•°é‡é”™è¯¯ï¼Œä½¿ç”¨ /? æŸ¥çœ‹ç”¨æ³•ã€‚\n");
+            return 1;
+    }
+    return 0;
+}
 
 void removeFrom(char *str,char remv)
 {
     int i,j=0;
-    for(i=0;str[i]!='\0';i++)
+    for (i=0; str[i]!='\0'; i++)
     {
-        if(str[i]!=remv)
+        if (str[i]!=remv)
         {
             str[j++]=str[i];
         }
@@ -20,68 +120,62 @@ void removeFrom(char *str,char remv)
     str[j]='\0';
 }
 
-int getHexVal(const char hex)
-{
-	return hex-((hex>'9')?((hex<'a')?55:87):48);
-}
-
 int string2ByteArrayFastest(const char * hex,char * result)
 {
-	if (strlen(hex)%2==0)
-	{
-        for (int i=0;i<(int)strlen(hex)/2;i++)
+    if (strlen(hex)%2==0)
+    {
+        for (int i=0; i<(int) strlen(hex)/2; i++)
         {
-            result[i]=(char) ( (getHexVal(hex[i*2])*16) + getHexVal(hex[(i*2)+1]) );
+            result[i]=(char) ((HEXVAL(hex[i*2])*16)+HEXVAL(hex[(i*2)+1]));
         }
         return 0;
-    }
-    else
+    } else
     {
         puts(hex);
-		puts("Ê®Áù½øÖÆµÄÔ­×Ö·û´®µÄ³¤¶È²»ÄÜÊÇÆæÊı");
+        printW(L"åå…­è¿›åˆ¶çš„åŸå­—ç¬¦ä¸²çš„é•¿åº¦ä¸èƒ½æ˜¯å¥‡æ•°\n");
         return -1;
     }
 }
 
-void decodePID(const unsigned char *digitalProductId, char *productKey) {
+void decodePID(const unsigned char *digitalProductId,char *productKey) {
     // int bp=0;
-    unsigned char pidBlock[16];
+    unsigned char pidBlock[16]="";
     signed char decodedKey[30];
     // unsigned char digitalProductId2[164];
     // strcpy_s(digitalProductId2,164,digitalProductId);
     int isNKey=(digitalProductId[66]>>3)&1;
 
     //digitalProductId2[66]=(unsigned char)((digitalProductId2[66]&0xF7)|((isNKey&2)<<2));
-    
-    // ¸´ÖÆ PID Ïà¹ØµÄ 15 ¸ö×Ö½Ú
-    for (int i=52;i<=67;i++) {
+
+    // å¤åˆ¶ PID ç›¸å…³çš„ 15 ä¸ªå­—èŠ‚
+    for (int i=52; i<=67; i++) {
         pidBlock[i-52]=digitalProductId[i];
     }
 
-    // ÌØÊâÎ»²Ù×÷  
-    pidBlock[14]=(pidBlock[14]&247)|((isNKey%4>=2?2:0)<<2);
-    
-    // ³õÊ¼»¯ Key ½á¹ûÊı×é
+    // ç‰¹æ®Šä½æ“ä½œ  
+    pidBlock[14]=(pidBlock[14]&247)|((isNKey%4>=2 ? 2 : 0)<<2);
+
+    // åˆå§‹åŒ– Key ç»“æœæ•°ç»„
     memset(decodedKey,0,sizeof(decodedKey));
 
-    // Base24 ½âÂë
-    for (int i=28;i>=0;i--) {
+    // Base24 è§£ç 
+    for (int i=28; i>=0; i--) {
         if (((i+1)%6==0)&&1) {
             decodedKey[i]='-';
         } else {
             int num=0;
-            for (int j=14;j>=0;j--) {
+            for (int j=14; j>=0; j--) {
                 int temp=(num<<8)|pidBlock[j];
-                pidBlock[j]=(unsigned char)(temp/24);
+                pidBlock[j]=(unsigned char) (temp/24);
                 num=temp%24;
-                decodedKey[i]=(signed char)KEY_CHARSET[num];
+                decodedKey[i]=(signed char) KEY_CHARSET[num];
             }
         }
     }
     if (isNKey!=0)
     {
         int nPos=0;
-        for (int i=0;i<24;i++) {
+        for (int i=0; i<24; i++) {
             if (decodedKey[0]==KEY_CHARSET[i]) {
                 nPos=i;
                 break;
@@ -89,9 +183,9 @@ void decodePID(const unsigned char *digitalProductId, char *productKey) {
         }
         decodedKey[29]='\0';
         removeFrom(decodedKey,'-');
-        memmove(decodedKey, decodedKey + 1, strlen(decodedKey));
-        int currentLength=strlen(decodedKey);
-        if(nPos>currentLength) nPos=currentLength;
+        memmove(decodedKey,decodedKey+1,strlen(decodedKey));
+        size_t currentLength=strlen(decodedKey);
+        if (nPos>currentLength) nPos=(int) currentLength;
         memmove(decodedKey+nPos+1,decodedKey+nPos,currentLength-nPos+1);
         decodedKey[nPos]='N';
     }
@@ -100,101 +194,46 @@ void decodePID(const unsigned char *digitalProductId, char *productKey) {
              decodedKey,decodedKey+5,decodedKey+10,decodedKey+15,decodedKey+20);
 }
 
-int main(int argc,char **argv)
-{
-    
-    HKEY hKey;
-    DWORD size=ULONG_MAX;
-    char buf[UCHAR_MAX];
-    char rawInput[329];
-    char productKey[30];
-    char result[154]="±¾³ÌĞòÒ²¿ÉÒÔ´ÓÃüÁîĞĞÔËĞĞ£¬Ê¹ÓÃ /? ²é¿´ÓÃ·¨¡£\nÄãµÄ²úÆ·ÃÜÔ¿Îª£º ";
-    char command[41];
-    unsigned char digitalProductId[164];
-    long unsigned int lpType=REG_BINARY;
-    switch (argc)
-    {
-    case 1:
-        puts("Digital Product Id Decoder Console Edition Bugfixed");
-        puts("");
-        puts("Copyright (C) bingtangxh.");
-        puts("");
-        puts("May the Anemo God bless you.");
-        puts("");
-        long ORet=RegOpenKeyEx(HKEY_LOCAL_MACHINE,"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",0,KEY_READ,&hKey);
-        if (ORet!=ERROR_SUCCESS)
-        {
-            printf("´ò¿ª×¢²á±íÊ§°Ü£º\n%s\n%s\n","SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion","DigitalProductId");
-            return 3;
-        }
-        else
-        {
-            long QRet=RegQueryValueEx(hKey,"DigitalProductId",0,&lpType,(BYTE*)buf, &size);
-            decodePID(buf, productKey);
-            strncat_s(result,154,productKey,29);
-            strncat_s(result,154,"\nÒª½«Ëü¸´ÖÆµ½¼ôÌù°åÂğ£¿",35);
-            RegCloseKey(hKey);
-            if(MessageBox(NULL,result,"DPIDDC",MB_ICONINFORMATION + MB_YESNO)==IDYES)
-            {
-                snprintf(command,41,"echo %s| clip",productKey);
-                system(command);
-            }
-        return 0;
-        }
-        break;
-    case 2:
-        if(!strncmp(argv[1],"/?",3))
-        {
-            puts("½« DigitalProductId ×¢²á±í DWORD ÊıÖµ½âÂëµÃµ½²úÆ·ÃÜÔ¿¡£");
-            puts("");
-            puts("Copyright (C) bingtangxh.");
-            puts("");
-            puts("DPIDDC [ /F digitalproductid | /? ]");
-            puts("");
-            puts("/F                 ±íÊ¾½øĞĞ½âÂëÓÃ»§¸ø¶¨µÄ DigitalProductId¡£");
-            puts("digitalproductid   ×¢²á±íÖĞ³¤¶ÈÎª 328 µÄ DWORD ÊıÖµ¡£");
-            puts("");
-            puts("/?                 ÏÔÊ¾´Ë°ïÖúĞÅÏ¢¡£");
-            puts("");
-            puts("Ò²¿ÉÒÔÖ±½ÓË«»÷£¨²»´øÈÎºÎ²ÎÊı£©ÔËĞĞ±¾³ÌĞò£¬Ö»ÄÜ²éÑ¯µ±Ç°ÏµÍ³µÄ²úÆ·ÃÜÔ¿¡£");
-            puts("");
-            puts("Èç¹ûÏëÒª´ÓÒ»¸öÅú´¦Àí½Å±¾µ÷ÓÃ±¾³ÌĞò£¬Äã¿ÉÒÔÕâÑùÊ¹ÓÃ£º");
-            puts("");
-            puts("FOR /F \"tokens=1-3\" %%A IN ('reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\" /v DigitalProductId') DO @IF /I %%A==DigitalProductId DPIDDC /F %%C");
+void about(void){
+    wchar_t aboutText[]=
+        L"Digital Product Id Decoder Console Edition Bugfixed\n"
+        L"\n"
+        L"Copyright (C) bingtangxh.\n"
+        L"\n"
+        L"May the Anemo God bless you.\n"
+        L"\n"
+        ;
+    printW(aboutText);
+}
 
-            return 0;
-        } else {
-            puts("²ÎÊı´íÎó£¬Ê¹ÓÃ /? ²é¿´ÓÃ·¨¡£");
-            return 1;
-        }
-        break;
-    case 3:
-        if(!_stricmp(argv[1],"/F"))
-        {
-            if(strlen(argv[2])==328)
-            {
-                strncpy_s(rawInput,329,argv[2],328);
-                // ±¾À´ÕâÀïÉèÖÃµÄ _DstSizeInChars ºÍ rawInput µÄ³¤¶È¶¼ÊÇ 328 
-                // µ«ÊÇÕâÑùµÄ»°£¬ strncpy_s »á½« rawInput Åª³É¿Õ×Ö·û´®£¬ËùÒÔÖ»ºÃ 329 ÁË
-                // printf("%s\n%d\n",rawInput,strcmp(rawInput,argv[2]));
-                string2ByteArrayFastest(rawInput,digitalProductId);
-                decodePID(digitalProductId, productKey);
-                puts(productKey);
-                return 0;
-            }
-            else
-            {
-                puts("ÊäÈëµÄ DigitalProductId ³¤¶È´íÎó£¬Ó¦µ±ÊÇ 328 ¡£");
-                return 2;
-            }
-        } else {
-            puts("²ÎÊı´íÎó£¬Ê¹ÓÃ /? ²é¿´ÓÃ·¨¡£");
-            return 1;
-        }
-        break;
-    default:
-        puts("²ÎÊıÊıÁ¿´íÎó£¬Ê¹ÓÃ /? ²é¿´ÓÃ·¨¡£");
-        return 1;
-    }
-    return 0;
+void help(void){
+    wchar_t helpText[]=
+        L"å°† DigitalProductId æ³¨å†Œè¡¨ DWORD æ•°å€¼è§£ç å¾—åˆ°äº§å“å¯†é’¥ã€‚\n"
+        L"\n"
+        L"Copyright (C) bingtangxh.\n"
+        L"\n"
+        L"DPIDDC [ /F digitalproductid | /? ]\n"
+        L"\n"
+        L"/F                 è¡¨ç¤ºè¿›è¡Œè§£ç ç”¨æˆ·ç»™å®šçš„ DigitalProductIdã€‚\n"
+        L"digitalproductid   æ³¨å†Œè¡¨ä¸­é•¿åº¦ä¸º 328 çš„ DWORD æ•°å€¼ã€‚\n"
+        L"\n"
+        L"/?                 æ˜¾ç¤ºæ­¤å¸®åŠ©ä¿¡æ¯ã€‚\n"
+        L"\n"
+        L"ä¹Ÿå¯ä»¥ç›´æ¥åŒå‡»ï¼ˆä¸å¸¦ä»»ä½•å‚æ•°ï¼‰è¿è¡Œæœ¬ç¨‹åºï¼Œåªèƒ½æŸ¥è¯¢å½“å‰ç³»ç»Ÿçš„äº§å“å¯†é’¥ã€‚\n"
+        L"\n"
+        L"å¦‚æœæƒ³è¦ä»ä¸€ä¸ªæ‰¹å¤„ç†è„šæœ¬è°ƒç”¨æœ¬ç¨‹åºï¼Œä½ å¯ä»¥è¿™æ ·ä½¿ç”¨ï¼š\n"
+        L"\n"
+        L"FOR /F \"tokens=1-3\" %%A IN ('reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\" /v DigitalProductId') DO @IF /I %%A==DigitalProductId DPIDDC /F %%C\n"
+        ;
+    printW(helpText);
+}
+
+void printW(const wchar_t* wstr) {
+#ifdef _WIN32
+    HANDLE hConsole=GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD written;
+    WriteConsoleW(hConsole,wstr,(DWORD) wcslen(wstr),&written,NULL);
+#else
+    printf("%ls",wstr);
+#endif
 }
